@@ -15,7 +15,7 @@ print(os.listdir("../input"))
 
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score
-from sklearn.svm import NuSVC
+from sklearn.linear_model import LogisticRegression
 from tqdm import tqdm
 
 #import raw data
@@ -35,31 +35,31 @@ y_train = df_train['target']
 X_test = df_test[features]
 
 #set parameter for NuSVC
-params = {'probability': True,
-          'kernel': 'poly', 
-          'degree': 4,
-          'gamma': 'auto',
-          'random_state': 4, 
-          'nu': 0.59, 
-          'coef0': 0.053}
+params = {'solver': 'liblinear',
+          'penalty': 'l2',
+          'C': 1.0}
 
 #cross validation
 cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
 
-for train_idx, valid_idx in cv.split(X_train, y_train):
+for train_idx, valid_idx in tqdm(cv.split(X_train, y_train)):
     trn_x = X_train.iloc[train_idx, :]
     val_x = X_train.iloc[valid_idx, :]
     trn_y = y_train[train_idx]
     val_y = y_train[valid_idx]
-    clf = NuSVC(**params)
+    clf = LogisticRegression(**params)
     clf.fit(trn_x, trn_y)
-    oof[valid_idx] = clf.predict_proba(val_x)
-    predictions += clf.predict_proba(X_test) / cv.n_splits
+    oof[valid_idx] = clf.predict_proba(val_x)[:, 1]
+    predictions += clf.predict_proba(X_test)[:, 1] / cv.n_splits
 
 #check ROC
 print('CV score: {}'.format(roc_auc_score(y_train, oof)))
 
 #Submission
-submission = pd.read_csv('../input/sample_submission.csv')
-submission['target'] = predictions
-submission.to_csv('../output/base_model.csv', header=True, index=False)
+sub = pd.read_csv('../input/sample_submission.csv')
+sub['target'] = predictions
+sub.to_csv('base_submission.csv', index=False)
+#submission.to_csv('../output/base_model.csv', header=True, index=False)
+
+#Referring to the kernel
+#https://www.kaggle.com/cdeotte/logistic-regression-0-800
