@@ -15,11 +15,19 @@ from sklearn.metrics import confusion_matrix, roc_auc_score, recall_score, preci
 df_train = pd.read_csv('../input/train.csv')
 df_test = pd.read_csv('../input/test.csv')
 
+#sampling for code check -- need to remove when formal submission
+sample_group = [i for i in range(10)]
+df_train = df_train[df_train['wheezy-copper-turtle-magic'].isin(sample_group)]
+df_test = df_test[df_test['wheezy-copper-turtle-magic'].isin(sample_group)]
+df_train.reset_index(drop=True, inplace=True)
+df_test.reset_index(drop=True, inplace=True)
+
 #set number of folds
 N_FOLDS = 5
 
 #extract feature names
 features = [c for c in df_train.columns if c not in ['id', 'target', 'wheezy-copper-turtle-magic']]
+num_groups = len(df_train['wheezy-copper-turtle-magic'].unique())
 
 #create empty list for out of fold
 num_models = 5
@@ -56,7 +64,7 @@ param_lr = {'solver':'saga',
             'C':0.1}
 
 #build 512 models
-for i in range(512):
+for i in range(num_groups):
     print('wheezy-copper-turtle-magic {}\n'.format(i))
     
     #extract subset of dataset where wheezy-copper-turtle-magic equals to i
@@ -65,6 +73,8 @@ for i in range(512):
     X_test = df_test[df_test['wheezy-copper-turtle-magic'] == i][features]
     X_train_idx = X_train.index
     X_test_idx = X_test.index
+
+    #reset subset index for k-fold
     X_train.reset_index(drop=True, inplace=True)
     y_train.reset_index(drop=True, inplace=True)
 
@@ -74,15 +84,14 @@ for i in range(512):
     X_train_scaled = X_concat_scaled[:X_train.shape[0]]
     X_test_scaled = X_concat_scaled[X_train.shape[0]:]
 
-    #stratified k fold
+    #stratified k-fold
     skf = StratifiedKFold(n_splits=N_FOLDS, random_state=0)
     counter = 0
 
-    for train_idx, val_idx in skf.split(X_train_scaled, y_train):
-        trn_x = X_train_scaled[train_idx, :] #numpy
+    for trn_idx, val_idx in skf.split(X_train_scaled, y_train):
+        trn_x = X_train_scaled[trn_idx, :] #numpy
         val_x = X_train_scaled[val_idx, :] #numpy
-        trn_y = y_train[train_idx]
-        val_y = y_train[val_idx]
+        trn_y = y_train[trn_idx]
 
         counter += 1
         print('Fold {}\n'.format(counter))
@@ -95,11 +104,20 @@ for i in range(512):
         for i in range(num_models):
             model = models[i]
             model.fit(trn_x, trn_y)
-
-            oof[val_idx, i] = model.predict_proba(val_x)[:, 1]
+            
+            #oof: val_idx is inside of X_train_idx (1 of 512 groups)
+            #predictions: predict X_test_idx (1 of 512 groups)
+            oof[X_train_idx[val_idx], i] = model.predict_proba(val_x)[:, 1]
             predictions[X_test_idx, i] += model.predict_proba(X_test_scaled)[:, 1] / N_FOLDS
             
-#print score
+#print single model score
 for i in range(num_models):
-    score = roc_auc_score(oof[:, i], predictions[:, i])
+    score = roc_auc_score(df_train['target'], oof[:, i])
     print('{}: {}'.format(model_names[i], score))
+
+#export single model file
+sub = pd.read_csv('../input/sample_submission.csv')
+sub = sub[:len(df_test)] #nothing happens if using all data
+for i, model in enumerate(model_names):
+    sub['target'] = predictions[:, i]
+    sub.to_csv('submission_' + model + '.csv', index=False)
