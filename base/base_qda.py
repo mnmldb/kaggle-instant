@@ -129,13 +129,7 @@ for i in range(num_groups):
 for i in index_used:
     score = roc_auc_score(df_train['target'], oof[:, i])
     print('{}: {}'.format(model_names[i], score))
-
-#export single model file
-sub = pd.read_csv('../input/sample_submission.csv')
-sub = sub[:len(df_test)] #nothing happens if using all data
-for i, model in enumerate(model_names[index_used]):
-    sub['target'] = predictions[:, i]
-    sub.to_csv('submission_' + model + '.csv', index=False)
+# 0.9631278205865496
 
 #export single model file
 sub = pd.read_csv('../input/sample_submission.csv')
