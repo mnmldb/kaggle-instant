@@ -33,6 +33,13 @@ warnings.filterwarnings('ignore')
 train = pd.read_csv('../input/train.csv')
 test = pd.read_csv('../input/test.csv')
 
+#sampling for code check -- need to remove when formal submission
+sample_group = [i for i in range(10)]
+train = train[train['wheezy-copper-turtle-magic'].isin(sample_group)]
+test = test[test['wheezy-copper-turtle-magic'].isin(sample_group)]
+train.reset_index(drop=True, inplace=True)
+test.reset_index(drop=True, inplace=True)
+
 # columns
 cols = [c for c in train.columns if c not in ['id', 'target', 'wheezy-copper-turtle-magic']]
 
